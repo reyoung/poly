@@ -4,7 +4,6 @@
 package poly
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -21,9 +20,6 @@ type polyType struct {
 
 	// discriminantFieldName is the JSON field name used to distinguish implementations
 	discriminantFieldName string
-
-	// discriminantFieldParser parses the discriminant field value from raw JSON
-	discriminantFieldParser func(json.RawMessage) (interface{}, error)
 
 	// structValues contains the discriminant values for each registered struct
 	structValues []any
@@ -49,8 +45,7 @@ type Poly struct {
 // discriminantFieldParser: a function to parse the discriminant field value from raw JSON
 func (p *Poly) RegisterInterface(
 	iFacePtr any,
-	discriminantFieldName string,
-	discriminantFieldParser func(json.RawMessage) (any, error)) error {
+	discriminantFieldName string) error {
 	iFaceType, err := p.iFaceType(iFacePtr)
 	if err != nil {
 		return err
@@ -64,9 +59,8 @@ func (p *Poly) RegisterInterface(
 		return errors.New("poly: interface already registered")
 	}
 	p.types[key] = &polyType{
-		fieldType:               iFaceType,
-		discriminantFieldName:   discriminantFieldName,
-		discriminantFieldParser: discriminantFieldParser,
+		fieldType:             iFaceType,
+		discriminantFieldName: discriminantFieldName,
 	}
 	return nil
 }
@@ -222,7 +216,13 @@ func (p *Poly) beforeUnmarshalJSONValue(prefix []string, val reflect.Value, buf 
 		fieldName := entry.discriminantFieldName
 
 		fieldPath := strings.Join(append(prefix, fieldName), ".")
-		iVal := gjson.GetBytes(buf, fieldPath).Value()
+		inputVal := gjson.GetBytes(buf, fieldPath)
+		var iVal any
+		if inputVal.Exists() {
+			iVal = inputVal.Value()
+		} else {
+			iVal = reflect.New(reflect.TypeOf(entry.structValues[0])).Elem().Interface()
+		}
 
 		set := false
 		for pos, dVal := range entry.structValues {

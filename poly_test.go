@@ -46,13 +46,7 @@ func TestMarshal(t *testing.T) {
 		Shape: &Circle{Radius: 10},
 	}
 	var poly Poly
-	require.NoError(t, poly.RegisterInterface((*Shape)(nil), "type", func(message json.RawMessage) (any, error) {
-		var str string
-		if err := json.Unmarshal(message, &str); err != nil {
-			return nil, err
-		}
-		return str, nil
-	}))
+	require.NoError(t, poly.RegisterInterface((*Shape)(nil), "type"))
 	require.NoError(t, poly.RegisterStruct((*Shape)(nil), (*Circle)(nil), "circle"))
 	require.NoError(t, poly.RegisterStruct((*Shape)(nil), (*Rect)(nil), "rect"))
 	require.NoError(t, poly.BeforeMarshalJSON(req))
@@ -64,13 +58,7 @@ func TestMarshal(t *testing.T) {
 func TestUnmarshalJSON(t *testing.T) {
 	req := &Request{}
 	var poly Poly
-	require.NoError(t, poly.RegisterInterface((*Shape)(nil), "type", func(message json.RawMessage) (any, error) {
-		var str string
-		if err := json.Unmarshal(message, &str); err != nil {
-			return nil, err
-		}
-		return str, nil
-	}))
+	require.NoError(t, poly.RegisterInterface((*Shape)(nil), "type"))
 	require.NoError(t, poly.RegisterStruct((*Shape)(nil), (*Circle)(nil), "circle"))
 	require.NoError(t, poly.RegisterStruct((*Shape)(nil), (*Rect)(nil), "rect"))
 	buf := []byte(`{"shape":{"type":"circle","radius":10}}`)
@@ -84,13 +72,7 @@ func TestUnmarshalJSON(t *testing.T) {
 func TestRectUnmarshalJSON(t *testing.T) {
 	req := &Request{}
 	var poly Poly
-	require.NoError(t, poly.RegisterInterface((*Shape)(nil), "type", func(message json.RawMessage) (any, error) {
-		var str string
-		if err := json.Unmarshal(message, &str); err != nil {
-			return nil, err
-		}
-		return str, nil
-	}))
+	require.NoError(t, poly.RegisterInterface((*Shape)(nil), "type"))
 	require.NoError(t, poly.RegisterStruct((*Shape)(nil), (*Circle)(nil), "circle"))
 	require.NoError(t, poly.RegisterStruct((*Shape)(nil), (*Rect)(nil), "rect"))
 	buf := []byte(`{"shape":{"type":"rect","width":5,"height":3}}`)
@@ -109,13 +91,7 @@ func TestSliceMarshalUnmarshal(t *testing.T) {
 		},
 	}
 	var poly Poly
-	require.NoError(t, poly.RegisterInterface((*Shape)(nil), "type", func(message json.RawMessage) (any, error) {
-		var str string
-		if err := json.Unmarshal(message, &str); err != nil {
-			return nil, err
-		}
-		return str, nil
-	}))
+	require.NoError(t, poly.RegisterInterface((*Shape)(nil), "type"))
 	require.NoError(t, poly.RegisterStruct((*Shape)(nil), (*Circle)(nil), "circle"))
 	require.NoError(t, poly.RegisterStruct((*Shape)(nil), (*Rect)(nil), "rect"))
 
@@ -146,13 +122,7 @@ func TestNestedStructure(t *testing.T) {
 	req.Data.Shape = &Circle{Radius: 10}
 
 	var poly Poly
-	require.NoError(t, poly.RegisterInterface((*Shape)(nil), "type", func(message json.RawMessage) (any, error) {
-		var str string
-		if err := json.Unmarshal(message, &str); err != nil {
-			return nil, err
-		}
-		return str, nil
-	}))
+	require.NoError(t, poly.RegisterInterface((*Shape)(nil), "type"))
 	require.NoError(t, poly.RegisterStruct((*Shape)(nil), (*Circle)(nil), "circle"))
 	require.NoError(t, poly.RegisterStruct((*Shape)(nil), (*Rect)(nil), "rect"))
 
@@ -179,24 +149,12 @@ func TestRegisterErrors(t *testing.T) {
 	// Test registering non-pointer interface
 	// Note: Shape(nil) is actually a nil interface value, not a pointer to an interface
 	// We need to pass a non-nil value that is not a pointer
-	err := poly.RegisterInterface(struct{}{}, "type", func(message json.RawMessage) (any, error) {
-		var str string
-		if err := json.Unmarshal(message, &str); err != nil {
-			return nil, err
-		}
-		return str, nil
-	})
+	err := poly.RegisterInterface(struct{}{}, "type")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "poly: iFacePtr must be a pointer")
 
 	// Test registering non-interface pointer
-	err = poly.RegisterInterface((*string)(nil), "type", func(message json.RawMessage) (any, error) {
-		var str string
-		if err := json.Unmarshal(message, &str); err != nil {
-			return nil, err
-		}
-		return str, nil
-	})
+	err = poly.RegisterInterface((*string)(nil), "type")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "poly: iFacePtr must be a pointer to interface")
 
@@ -225,33 +183,15 @@ func TestRegisterErrors(t *testing.T) {
 	require.Contains(t, err.Error(), "poly: interface type")
 
 	// Test duplicate interface registration
-	require.NoError(t, poly.RegisterInterface((*Shape)(nil), "type", func(message json.RawMessage) (any, error) {
-		var str string
-		if err := json.Unmarshal(message, &str); err != nil {
-			return nil, err
-		}
-		return str, nil
-	}))
-	err = poly.RegisterInterface((*Shape)(nil), "type", func(message json.RawMessage) (any, error) {
-		var str string
-		if err := json.Unmarshal(message, &str); err != nil {
-			return nil, err
-		}
-		return str, nil
-	})
+	require.NoError(t, poly.RegisterInterface((*Shape)(nil), "type"))
+	err = poly.RegisterInterface((*Shape)(nil), "type")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "poly: interface already registered")
 }
 
 func TestBeforeMarshalErrors(t *testing.T) {
 	var poly Poly
-	require.NoError(t, poly.RegisterInterface((*Shape)(nil), "type", func(message json.RawMessage) (any, error) {
-		var str string
-		if err := json.Unmarshal(message, &str); err != nil {
-			return nil, err
-		}
-		return str, nil
-	}))
+	require.NoError(t, poly.RegisterInterface((*Shape)(nil), "type"))
 
 	// Test marshaling unregistered interface
 	type AnotherShape interface{}
@@ -278,13 +218,7 @@ func TestBeforeMarshalErrors(t *testing.T) {
 
 func TestBeforeUnmarshalErrors(t *testing.T) {
 	var poly Poly
-	require.NoError(t, poly.RegisterInterface((*Shape)(nil), "type", func(message json.RawMessage) (any, error) {
-		var str string
-		if err := json.Unmarshal(message, &str); err != nil {
-			return nil, err
-		}
-		return str, nil
-	}))
+	require.NoError(t, poly.RegisterInterface((*Shape)(nil), "type"))
 	require.NoError(t, poly.RegisterStruct((*Shape)(nil), (*Circle)(nil), "circle"))
 
 	// Test unmarshaling unregistered interface
@@ -305,4 +239,19 @@ func TestBeforeUnmarshalErrors(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "poly: interface type")
 	require.Contains(t, err.Error(), "not found in struct")
+}
+
+func TestDefaultValue(t *testing.T) {
+	var poly Poly
+	require.NoError(t, poly.RegisterInterface((*Shape)(nil), "type"))
+	require.NoError(t, poly.RegisterStruct((*Shape)(nil), (*Circle)(nil), ""))
+
+	buf := []byte(`{"shape":{"radius":10}}`)
+	req := &struct {
+		Shape Shape `json:"shape"`
+	}{}
+	err := poly.BeforeUnmarshalJSON(req, buf)
+	require.NoError(t, err)
+	_, ok := req.Shape.(*Circle)
+	require.True(t, ok)
 }
