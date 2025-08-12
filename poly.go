@@ -1,3 +1,6 @@
+// Package poly provides utilities for handling polymorphic JSON serialization and deserialization.
+// It allows registering interfaces and their implementations, then automatically sets discriminant fields
+// during marshaling and creates appropriate concrete types during unmarshaling.
 package poly
 
 import (
@@ -11,20 +14,39 @@ import (
 	"github.com/tidwall/gjson"
 )
 
+// polyType holds registration information for a specific interface type
 type polyType struct {
-	fieldType               reflect.Type
-	discriminantFieldName   string
+	// fieldType is the reflect.Type of the interface
+	fieldType reflect.Type
+
+	// discriminantFieldName is the JSON field name used to distinguish implementations
+	discriminantFieldName string
+
+	// discriminantFieldParser parses the discriminant field value from raw JSON
 	discriminantFieldParser func(json.RawMessage) (interface{}, error)
-	structValues            []any
-	structCreators          []func() any
-	structTypes             []reflect.Type
-	structFieldPos          []int
+
+	// structValues contains the discriminant values for each registered struct
+	structValues []any
+
+	// structCreators are functions that create new instances of registered structs
+	structCreators []func() any
+
+	// structTypes are the reflect.Types of the registered structs
+	structTypes []reflect.Type
+
+	// structFieldPos tracks the position of the discriminant field in each struct
+	structFieldPos []int
 }
 
+// Poly manages the registration of interfaces and their implementations for polymorphic JSON handling
 type Poly struct {
 	types map[string]*polyType
 }
 
+// RegisterInterface registers an interface type for polymorphic handling
+// iFacePtr: a pointer to the interface type (e.g., (*Shape)(nil))
+// discriminantFieldName: the JSON field name used to distinguish implementations (e.g., "type")
+// discriminantFieldParser: a function to parse the discriminant field value from raw JSON
 func (p *Poly) RegisterInterface(
 	iFacePtr any,
 	discriminantFieldName string,
@@ -49,6 +71,7 @@ func (p *Poly) RegisterInterface(
 	return nil
 }
 
+// structType validates and extracts the reflect.Type from a struct pointer
 func (p *Poly) structType(structPtr any) (reflect.Type, error) {
 	structPtrType := reflect.TypeOf(structPtr)
 	if structPtrType.Kind() != reflect.Ptr {
@@ -62,6 +85,7 @@ func (p *Poly) structType(structPtr any) (reflect.Type, error) {
 	return structType, nil
 }
 
+// iFaceType validates and extracts the reflect.Type from an interface pointer
 func (p *Poly) iFaceType(iFacePtr any) (reflect.Type, error) {
 	iFacePtrType := reflect.TypeOf(iFacePtr)
 	if iFacePtrType.Kind() != reflect.Ptr {
@@ -74,6 +98,10 @@ func (p *Poly) iFaceType(iFacePtr any) (reflect.Type, error) {
 	return iFaceType, nil
 }
 
+// RegisterStruct registers a struct implementation for an interface
+// iFacePtr: a pointer to the interface type (e.g., (*Shape)(nil))
+// structPtr: a pointer to the struct type (e.g., (*Circle)(nil))
+// value: the discriminant value for this struct (e.g., "circle")
 func (p *Poly) RegisterStruct(
 	iFacePtr any,
 	structPtr any,
@@ -121,6 +149,8 @@ func (p *Poly) RegisterStruct(
 	return nil
 }
 
+// beforeMarshalJSONValue recursively processes values before JSON marshaling
+// It sets discriminant field values for interface implementations
 func (p *Poly) beforeMarshalJSONValue(val reflect.Value) error {
 	if val.Kind() == reflect.Ptr {
 		val = val.Elem()
@@ -169,9 +199,14 @@ func (p *Poly) beforeMarshalJSONValue(val reflect.Value) error {
 	return nil
 }
 
+// BeforeMarshalJSON prepares a value for JSON marshaling by setting discriminant fields
+// Call this before json.Marshal to ensure interface implementations are correctly tagged
 func (p *Poly) BeforeMarshalJSON(ptr any) error {
 	return p.beforeMarshalJSONValue(reflect.ValueOf(ptr))
 }
+
+// beforeUnmarshalJSONValue recursively processes values before JSON unmarshaling
+// It creates appropriate concrete types based on discriminant field values
 func (p *Poly) beforeUnmarshalJSONValue(prefix []string, val reflect.Value, buf []byte) error {
 	if val.Kind() == reflect.Ptr {
 		val = val.Elem()
@@ -223,8 +258,11 @@ func (p *Poly) beforeUnmarshalJSONValue(prefix []string, val reflect.Value, buf 
 			}
 		}
 	} else if val.Kind() == reflect.Slice {
+		l := gjson.GetBytes(buf, strings.Join(append(prefix, "#"), ".")).Int()
+		val.Set(reflect.MakeSlice(val.Type(), int(l), int(l)))
+
 		for i := 0; i < val.Len(); i++ {
-			err := p.beforeUnmarshalJSONValue(append(prefix, "["+strconv.Itoa(i)+"]"), val.Index(i), buf)
+			err := p.beforeUnmarshalJSONValue(append(prefix, strconv.Itoa(i)), val.Index(i), buf)
 			if err != nil {
 				return err
 			}
@@ -233,6 +271,10 @@ func (p *Poly) beforeUnmarshalJSONValue(prefix []string, val reflect.Value, buf 
 	return nil
 }
 
+// BeforeUnmarshalJSON prepares a value for JSON unmarshaling by creating appropriate concrete types
+// Call this before json.Unmarshal to ensure interface fields get the correct concrete implementations
+// ptr: pointer to the value to populate
+// buf: the JSON bytes to parse
 func (p *Poly) BeforeUnmarshalJSON(ptr any, buf []byte) error {
 	return p.beforeUnmarshalJSONValue(nil, reflect.ValueOf(ptr), buf)
 }
