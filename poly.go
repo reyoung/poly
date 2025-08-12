@@ -275,6 +275,6 @@ func (p *Poly) beforeUnmarshalJSONValue(prefix []string, val reflect.Value, buf 
 // Call this before json.Unmarshal to ensure interface fields get the correct concrete implementations
 // ptr: pointer to the value to populate
 // buf: the JSON bytes to parse
-func (p *Poly) BeforeUnmarshalJSON(ptr any, buf []byte) error {
+func (p *Poly) BeforeUnmarshalJSON(buf []byte, ptr any) error {
 	return p.beforeUnmarshalJSONValue(nil, reflect.ValueOf(ptr), buf)
 }
