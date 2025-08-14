@@ -235,7 +235,7 @@ func (p *Poly) beforeUnmarshalJSONValue(prefix []string, val reflect.Value, buf 
 			break
 		}
 		if !set {
-			return fmt.Errorf("poly: interface type %s not found in struct", key)
+			return fmt.Errorf("poly: cannot resolve interface %s type by field path %s, raw json %s ", key, fieldPath, string(buf))
 		}
 		val = val.Elem()
 		if val.Kind() == reflect.Ptr {

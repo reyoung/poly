@@ -237,8 +237,8 @@ func TestBeforeUnmarshalErrors(t *testing.T) {
 	buf2 := []byte(`{"shape":{"type":"triangle","radius":10}}`)
 	err = poly.BeforeUnmarshalJSON(buf2, req2)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "poly: interface type")
-	require.Contains(t, err.Error(), "not found in struct")
+	require.Contains(t, err.Error(), "poly: cannot resolve interface")
+	require.Contains(t, err.Error(), "type by field path")
 }
 
 func TestDefaultValue(t *testing.T) {
