@@ -154,8 +154,12 @@ func (p *Poly) beforeMarshalJSONValue(val reflect.Value, strict bool) error {
 		iFaceType := val.Type()
 		key := iFaceType.PkgPath() + "." + iFaceType.Name()
 		entry, ok := p.types[key]
-		if !ok && strict { // is interface and not found
-			return fmt.Errorf("poly: interface type %s not registered", key)
+		if !ok { // is interface and not found
+			if strict {
+				return fmt.Errorf("poly: interface type %s not registered", key)
+			} else {
+				return nil
+			}
 		}
 		val = val.Elem()
 		if val.Kind() == reflect.Ptr {
@@ -210,8 +214,12 @@ func (p *Poly) beforeUnmarshalJSONValue(prefix []string, val reflect.Value, buf 
 		iFaceType := val.Type()
 		key := iFaceType.PkgPath() + "." + iFaceType.Name()
 		entry, ok := p.types[key]
-		if !ok && strict {
-			return fmt.Errorf("poly: interface type %s not registered", key)
+		if !ok {
+			if strict {
+				return fmt.Errorf("poly: interface type %s not registered", key)
+			} else {
+				return nil
+			}
 		}
 		fieldName := entry.discriminantFieldName
 
