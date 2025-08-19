@@ -49,7 +49,7 @@ func TestMarshal(t *testing.T) {
 	require.NoError(t, poly.RegisterInterface((*Shape)(nil), "type"))
 	require.NoError(t, poly.RegisterStruct((*Shape)(nil), (*Circle)(nil), "circle"))
 	require.NoError(t, poly.RegisterStruct((*Shape)(nil), (*Rect)(nil), "rect"))
-	require.NoError(t, poly.BeforeMarshalJSON(req))
+	require.NoError(t, poly.BeforeMarshalJSON(req, true))
 	buf, err := json.Marshal(req)
 	require.NoError(t, err)
 	require.Equal(t, `{"shape":{"type":"circle","radius":10}}`, string(buf))
@@ -62,7 +62,7 @@ func TestUnmarshalJSON(t *testing.T) {
 	require.NoError(t, poly.RegisterStruct((*Shape)(nil), (*Circle)(nil), "circle"))
 	require.NoError(t, poly.RegisterStruct((*Shape)(nil), (*Rect)(nil), "rect"))
 	buf := []byte(`{"shape":{"type":"circle","radius":10}}`)
-	require.NoError(t, poly.BeforeUnmarshalJSON(buf, req))
+	require.NoError(t, poly.BeforeUnmarshalJSON(buf, req, true))
 	require.NoError(t, json.Unmarshal(buf, &req))
 	circle, ok := req.Shape.(*Circle)
 	require.True(t, ok)
@@ -76,7 +76,7 @@ func TestRectUnmarshalJSON(t *testing.T) {
 	require.NoError(t, poly.RegisterStruct((*Shape)(nil), (*Circle)(nil), "circle"))
 	require.NoError(t, poly.RegisterStruct((*Shape)(nil), (*Rect)(nil), "rect"))
 	buf := []byte(`{"shape":{"type":"rect","width":5,"height":3}}`)
-	require.NoError(t, poly.BeforeUnmarshalJSON(buf, req))
+	require.NoError(t, poly.BeforeUnmarshalJSON(buf, req, true))
 	require.NoError(t, json.Unmarshal(buf, &req))
 	rect, ok := req.Shape.(*Rect)
 	require.True(t, ok)
@@ -96,7 +96,7 @@ func TestSliceMarshalUnmarshal(t *testing.T) {
 	require.NoError(t, poly.RegisterStruct((*Shape)(nil), (*Rect)(nil), "rect"))
 
 	// Marshal test
-	require.NoError(t, poly.BeforeMarshalJSON(req))
+	require.NoError(t, poly.BeforeMarshalJSON(req, true))
 	buf, err := json.Marshal(req)
 	require.NoError(t, err)
 	expected := `{"shapes":[{"type":"circle","radius":10},{"type":"rect","width":5,"height":3}]}`
@@ -104,7 +104,7 @@ func TestSliceMarshalUnmarshal(t *testing.T) {
 
 	// Unmarshal test
 	req2 := &RequestWithSlice{}
-	require.NoError(t, poly.BeforeUnmarshalJSON(buf, req2))
+	require.NoError(t, poly.BeforeUnmarshalJSON(buf, req2, true))
 	require.NoError(t, json.Unmarshal(buf, &req2))
 	require.Len(t, req2.Shapes, 2)
 
@@ -127,7 +127,7 @@ func TestNestedStructure(t *testing.T) {
 	require.NoError(t, poly.RegisterStruct((*Shape)(nil), (*Rect)(nil), "rect"))
 
 	// Marshal test
-	require.NoError(t, poly.BeforeMarshalJSON(req))
+	require.NoError(t, poly.BeforeMarshalJSON(req, true))
 	buf, err := json.Marshal(req)
 	require.NoError(t, err)
 	expected := `{"data":{"shape":{"type":"circle","radius":10}}}`
@@ -135,7 +135,7 @@ func TestNestedStructure(t *testing.T) {
 
 	// Unmarshal test
 	req2 := &NestedRequest{}
-	require.NoError(t, poly.BeforeUnmarshalJSON(buf, req2))
+	require.NoError(t, poly.BeforeUnmarshalJSON(buf, req2, true))
 	require.NoError(t, json.Unmarshal(buf, &req2))
 
 	circle, ok := req2.Data.Shape.(*Circle)
@@ -200,7 +200,7 @@ func TestBeforeMarshalErrors(t *testing.T) {
 	}{
 		Shape: &Circle{Radius: 10},
 	}
-	err := poly.BeforeMarshalJSON(req)
+	err := poly.BeforeMarshalJSON(req, true)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "poly: interface type")
 	require.Contains(t, err.Error(), "not registered")
@@ -210,7 +210,7 @@ func TestBeforeMarshalErrors(t *testing.T) {
 	req2 := &Request{
 		Shape: &Rect{Width: 5, Height: 3}, // Rect registered but not for this poly instance in this test
 	}
-	err = poly.BeforeMarshalJSON(req2)
+	err = poly.BeforeMarshalJSON(req2, true)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "poly: interface type")
 	require.Contains(t, err.Error(), "not found in struct")
@@ -227,7 +227,7 @@ func TestBeforeUnmarshalErrors(t *testing.T) {
 		Shape AnotherShape `json:"shape"`
 	}{}
 	buf := []byte(`{"shape":{"type":"circle","radius":10}}`)
-	err := poly.BeforeUnmarshalJSON(buf, req)
+	err := poly.BeforeUnmarshalJSON(buf, req, true)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "poly: interface type")
 	require.Contains(t, err.Error(), "not registered")
@@ -235,7 +235,7 @@ func TestBeforeUnmarshalErrors(t *testing.T) {
 	// Test unmarshaling with unknown discriminant value
 	req2 := &Request{}
 	buf2 := []byte(`{"shape":{"type":"triangle","radius":10}}`)
-	err = poly.BeforeUnmarshalJSON(buf2, req2)
+	err = poly.BeforeUnmarshalJSON(buf2, req2, true)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "poly: cannot resolve interface")
 	require.Contains(t, err.Error(), "type by field path")
@@ -250,7 +250,7 @@ func TestDefaultValue(t *testing.T) {
 	req := &struct {
 		Shape Shape `json:"shape"`
 	}{}
-	err := poly.BeforeUnmarshalJSON(buf, req)
+	err := poly.BeforeUnmarshalJSON(buf, req, true)
 	require.NoError(t, err)
 	_, ok := req.Shape.(*Circle)
 	require.True(t, ok)

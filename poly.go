@@ -145,7 +145,7 @@ func (p *Poly) RegisterStruct(
 
 // beforeMarshalJSONValue recursively processes values before JSON marshaling
 // It sets discriminant field values for interface implementations
-func (p *Poly) beforeMarshalJSONValue(val reflect.Value) error {
+func (p *Poly) beforeMarshalJSONValue(val reflect.Value, strict bool) error {
 	if val.Kind() == reflect.Ptr {
 		val = val.Elem()
 	}
@@ -154,7 +154,7 @@ func (p *Poly) beforeMarshalJSONValue(val reflect.Value) error {
 		iFaceType := val.Type()
 		key := iFaceType.PkgPath() + "." + iFaceType.Name()
 		entry, ok := p.types[key]
-		if !ok {
+		if !ok && strict { // is interface and not found
 			return fmt.Errorf("poly: interface type %s not registered", key)
 		}
 		val = val.Elem()
@@ -177,14 +177,14 @@ func (p *Poly) beforeMarshalJSONValue(val reflect.Value) error {
 	}
 	if val.Kind() == reflect.Struct {
 		for i := 0; i < val.NumField(); i++ {
-			err := p.beforeMarshalJSONValue(val.Field(i))
+			err := p.beforeMarshalJSONValue(val.Field(i), strict)
 			if err != nil {
 				return err
 			}
 		}
 	} else if val.Kind() == reflect.Slice {
 		for i := 0; i < val.Len(); i++ {
-			err := p.beforeMarshalJSONValue(val.Index(i))
+			err := p.beforeMarshalJSONValue(val.Index(i), strict)
 			if err != nil {
 				return err
 			}
@@ -195,13 +195,13 @@ func (p *Poly) beforeMarshalJSONValue(val reflect.Value) error {
 
 // BeforeMarshalJSON prepares a value for JSON marshaling by setting discriminant fields
 // Call this before json.Marshal to ensure interface implementations are correctly tagged
-func (p *Poly) BeforeMarshalJSON(ptr any) error {
-	return p.beforeMarshalJSONValue(reflect.ValueOf(ptr))
+func (p *Poly) BeforeMarshalJSON(ptr any, strict bool) error {
+	return p.beforeMarshalJSONValue(reflect.ValueOf(ptr), strict)
 }
 
 // beforeUnmarshalJSONValue recursively processes values before JSON unmarshaling
 // It creates appropriate concrete types based on discriminant field values
-func (p *Poly) beforeUnmarshalJSONValue(prefix []string, val reflect.Value, buf []byte) error {
+func (p *Poly) beforeUnmarshalJSONValue(prefix []string, val reflect.Value, buf []byte, strict bool) error {
 	if val.Kind() == reflect.Ptr {
 		val = val.Elem()
 	}
@@ -210,7 +210,7 @@ func (p *Poly) beforeUnmarshalJSONValue(prefix []string, val reflect.Value, buf 
 		iFaceType := val.Type()
 		key := iFaceType.PkgPath() + "." + iFaceType.Name()
 		entry, ok := p.types[key]
-		if !ok {
+		if !ok && strict {
 			return fmt.Errorf("poly: interface type %s not registered", key)
 		}
 		fieldName := entry.discriminantFieldName
@@ -252,7 +252,7 @@ func (p *Poly) beforeUnmarshalJSONValue(prefix []string, val reflect.Value, buf 
 			if fieldName == "" {
 				continue
 			}
-			err := p.beforeUnmarshalJSONValue(append(prefix, fieldName), val.Field(i), buf)
+			err := p.beforeUnmarshalJSONValue(append(prefix, fieldName), val.Field(i), buf, strict)
 			if err != nil {
 				return err
 			}
@@ -262,7 +262,7 @@ func (p *Poly) beforeUnmarshalJSONValue(prefix []string, val reflect.Value, buf 
 		val.Set(reflect.MakeSlice(val.Type(), int(l), int(l)))
 
 		for i := 0; i < val.Len(); i++ {
-			err := p.beforeUnmarshalJSONValue(append(prefix, strconv.Itoa(i)), val.Index(i), buf)
+			err := p.beforeUnmarshalJSONValue(append(prefix, strconv.Itoa(i)), val.Index(i), buf, strict)
 			if err != nil {
 				return err
 			}
@@ -275,6 +275,6 @@ func (p *Poly) beforeUnmarshalJSONValue(prefix []string, val reflect.Value, buf 
 // Call this before json.Unmarshal to ensure interface fields get the correct concrete implementations
 // ptr: pointer to the value to populate
 // buf: the JSON bytes to parse
-func (p *Poly) BeforeUnmarshalJSON(buf []byte, ptr any) error {
-	return p.beforeUnmarshalJSONValue(nil, reflect.ValueOf(ptr), buf)
+func (p *Poly) BeforeUnmarshalJSON(buf []byte, ptr any, strict bool) error {
+	return p.beforeUnmarshalJSONValue(nil, reflect.ValueOf(ptr), buf, strict)
 }
